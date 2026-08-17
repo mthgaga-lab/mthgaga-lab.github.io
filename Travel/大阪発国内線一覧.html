@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>KIX / ITM DOMESTIC CHART — 関空・伊丹発 国内線路線図</title>
+<style>
+  :root{
+    --sea:#d3dde1; --land:#e8e3d2; --land-line:#b6b09a;
+    --ink:#152329; --ink-2:#40565e; --grid:#adbcc0;
+    --kix:#a8215f; --itm:#1d6f8b; --both:#6b3f86;
+    --paper:#f2f0e7; --edge:#8b9a9e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{background:var(--sea);color:var(--ink);
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Noto Sans JP","Yu Gothic",system-ui,sans-serif;
+    display:flex;flex-direction:column;overflow:hidden}
+  header{flex:0 0 auto;background:var(--paper);border-bottom:1px solid var(--ink);padding:10px 14px 8px}
+  .brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .brand h1{margin:0;font-size:13px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .brand .sub{font-size:11px;color:var(--ink-2)}
+  .brand .rev{margin-left:auto;font-size:10px;color:var(--ink-2);letter-spacing:.12em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+  .tabs{flex:0 0 auto;background:var(--paper);border-bottom:1px solid var(--ink);
+    display:flex;gap:6px;padding:8px 14px;overflow-x:auto;scrollbar-width:thin}
+  .tabs::-webkit-scrollbar{height:4px}
+  .tabs::-webkit-scrollbar-thumb{background:var(--edge)}
+  .tab{flex:0 0 auto;cursor:pointer;border:1px solid var(--ink-2);background:transparent;color:var(--ink);
+    padding:6px 11px 5px;border-radius:2px;font:inherit;font-size:12.5px;line-height:1.15;
+    display:flex;flex-direction:column;gap:2px;align-items:flex-start}
+  .tab .code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:9.5px;
+    letter-spacing:.14em;color:var(--ink-2)}
+  .tab:hover{background:#e6e3d8}
+  .tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+  .tab[aria-pressed="true"] .code{color:#b9c6c0}
+  .tab:focus-visible{outline:2px solid var(--kix);outline-offset:2px}
+
+  main{flex:1 1 auto;display:flex;min-height:0}
+  .mapwrap{position:relative;flex:1 1 auto;min-width:0;background:var(--sea)}
+  svg#chart{width:100%;height:100%;display:block;touch-action:manipulation}
+
+  .legend{position:absolute;left:12px;bottom:12px;background:rgba(242,240,231,.92);border:1px solid var(--ink);
+    padding:8px 10px;font-size:11px;line-height:1.7;max-width:min(46vw,220px)}
+  .legend b{font-weight:700;letter-spacing:.1em;font-size:9.5px;display:block;margin-bottom:3px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--ink-2)}
+  .key{display:flex;align-items:center;gap:7px}
+  .key i{display:block;width:24px;height:0;border-top:2px solid var(--kix);flex:0 0 auto}
+  .key i.itm{border-top:2px dashed var(--itm)}
+  .key i.both{border-top:2px solid var(--both)}
+  .key i.ring{border-top:1px dotted var(--edge)}
+
+  .seg{position:absolute;right:12px;top:12px;display:flex;border:1px solid var(--ink);border-radius:2px;
+    overflow:hidden;background:rgba(242,240,231,.94)}
+  .seg button{cursor:pointer;font:inherit;font-size:12px;background:transparent;border:0;
+    border-left:1px solid var(--ink);color:var(--ink);padding:7px 11px}
+  .seg button:first-child{border-left:0}
+  .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+  .seg button[data-o="kix"][aria-pressed="true"]{background:var(--kix)}
+  .seg button[data-o="itm"][aria-pressed="true"]{background:var(--itm)}
+  .seg button:focus-visible{outline:2px solid var(--kix);outline-offset:-3px}
+
+  aside{flex:0 0 306px;background:var(--paper);border-left:1px solid var(--ink);
+    display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .pan-head{padding:12px 14px 10px;border-bottom:1px solid var(--ink);flex:0 0 auto}
+  .pan-head h2{margin:0 0 2px;font-size:17px}
+  .pan-head .meta{font-size:11px;color:var(--ink-2);letter-spacing:.06em;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .pan-body{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 14px 26px;flex:1 1 auto;min-height:0}
+  .sec{font-size:9.5px;letter-spacing:.18em;color:var(--ink-2);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    border-bottom:1px solid var(--land-line);padding-bottom:3px;margin:0 0 8px}
+  .sec:not(:first-child){margin-top:18px}
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .cp{font-size:12px;padding:3px 7px 2px;border:1px solid var(--kix);color:var(--kix);border-radius:2px;
+    display:flex;gap:5px;align-items:center}
+  .cp.itm{border-color:var(--itm);color:var(--itm);border-style:dashed}
+  .cp.both{border-color:var(--both);color:var(--both)}
+  .cp s{text-decoration:none;font-size:9px;opacity:.85}
+  .note{font-size:11.5px;line-height:1.75;color:var(--ink-2);margin:8px 0 0}
+  .note.warn{color:var(--ink);border-left:2px solid var(--both);padding-left:8px}
+  .strip{border:1px solid var(--ink);background:#fff;padding:9px 11px;margin-top:4px;font-size:12.5px;line-height:1.6}
+  .strip .city{font-size:16px;font-weight:700}
+  .strip .row{display:flex;justify-content:space-between;gap:10px;border-top:1px dotted var(--land-line);
+    padding-top:4px;margin-top:4px}
+  .strip .row span:first-child{color:var(--ink-2);font-size:11px;letter-spacing:.08em}
+  .empty{font-size:12px;color:var(--ink-2);line-height:1.7}
+
+  .city-dot{cursor:pointer}
+  text{user-select:none}
+  .lbl{fill:var(--ink);paint-order:stroke;stroke:rgba(232,231,222,.88);stroke-linejoin:round}
+  .ringlbl{fill:var(--edge);letter-spacing:.1em}
+
+  @media (max-width:820px){
+    html,body{height:auto;overflow:visible}
+    body{padding-bottom:env(safe-area-inset-bottom)}
+    header{padding:9px 12px 7px}
+    .brand h1{font-size:12px;letter-spacing:.2em}
+    .brand .sub{font-size:10.5px}
+    .brand .rev{display:none}
+    .tabs{position:sticky;top:0;z-index:6;padding:7px 12px;box-shadow:0 1px 0 rgba(21,35,41,.06);
+      scroll-snap-type:x proximity}
+    .tab{scroll-snap-align:start;min-height:44px;justify-content:center;font-size:13.5px;padding:6px 12px}
+    main{flex-direction:column;min-height:0}
+    .mapwrap{flex:0 0 auto;height:56vh;min-height:300px}
+    aside{flex:0 0 auto;max-height:none;overflow:visible;border-left:none;border-top:1px solid var(--ink)}
+    .pan-body{overflow:visible;padding:12px 14px 40px}
+    .pan-head h2{font-size:18px}
+    .note{font-size:12.5px}
+    .cp{font-size:12.5px;padding:4px 8px 3px}
+    .legend{left:0;right:0;bottom:0;max-width:none;padding:6px 10px;font-size:10.5px;
+      display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;justify-content:center;
+      border-left:none;border-right:none;border-bottom:none;line-height:1.5}
+    .legend b{display:none}
+    .key i{width:18px}
+    .seg{right:8px;top:8px}
+    .seg button{min-height:38px;font-size:12.5px;padding:7px 12px}
+  }
+  @media (max-width:820px) and (max-height:620px){.mapwrap{height:64vh}}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>KIX / ITM DOMESTIC</h1>
+    <span class="sub">関空・伊丹発 国内線路線図</span>
+    <span class="rev">REV 2026-08-17 / 夏ダイヤ</span>
+  </div>
+</header>
+
+<div class="tabs" id="tabs" role="group" aria-label="航空会社を選ぶ"></div>
+
+<main>
+  <div class="mapwrap">
+    <svg id="chart" role="img" aria-label="関空・伊丹発の国内線路線図"></svg>
+    <div class="seg" role="group" aria-label="出発空港を選ぶ">
+      <button type="button" data-o="both" aria-pressed="true">両方</button>
+      <button type="button" data-o="kix" aria-pressed="false">関空</button>
+      <button type="button" data-o="itm" aria-pressed="false">伊丹</button>
+    </div>
+    <div class="legend">
+      <b>LEGEND</b>
+      <div class="key"><i></i><span>関空（KIX）発</span></div>
+      <div class="key"><i class="itm"></i><span>伊丹（ITM）発</span></div>
+      <div class="key"><i class="both"></i><span>両方から行ける</span></div>
+      <div class="key"><i class="ring"></i><span>500km毎</span></div>
+    </div>
+  </div>
+
+  <aside>
+    <div class="pan-head">
+      <h2 id="alName">すべての航空会社</h2>
+      <div class="meta" id="alMeta"></div>
+    </div>
+    <div class="pan-body">
+      <p class="sec">SELECTED / 選んだ空港</p>
+      <div id="strip"><p class="empty">地図の●を押すと、出発空港と距離が出ます。</p></div>
+
+      <p class="sec">REGIONS / 行ける地方</p>
+      <div class="chips" id="chips"></div>
+
+      <p class="sec">NOTES</p>
+      <p class="note" id="alNote"></p>
+      <p class="note warn">2026年8月時点の夏ダイヤをもとにした概略図です。国内線は季節運航・臨時便・機材変更が多く、同じ路線でもANA便とJAL便が入れ替わることがあります。予約前に各社の時刻表で確認してください。</p>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ============================================================
+   出発空港と就航地 [経度, 緯度, 地方]
+   ============================================================ */
+const ORIGIN={KIX:{name:"関西（関空）",p:[135.24,34.43]},ITM:{name:"大阪（伊丹）",p:[135.44,34.79]}};
+const CITY={
+"新千歳":[141.69,42.79,"北海道"],"函館":[140.82,41.77,"北海道"],"旭川":[142.45,43.67,"北海道"],
+"釧路":[144.19,43.04,"北海道"],"女満別":[144.16,43.88,"北海道"],
+"青森":[140.69,40.73,"東北"],"秋田":[140.22,39.62,"東北"],"いわて花巻":[141.13,39.43,"東北"],
+"仙台":[140.92,38.14,"東北"],"山形":[140.37,38.41,"東北"],"福島":[140.43,37.23,"東北"],
+"東京/成田":[140.39,35.76,"関東"],"東京/羽田":[139.78,35.55,"関東"],
+"新潟":[139.11,37.96,"中部"],"松本":[137.92,36.17,"中部"],
+"但馬":[134.79,35.51,"中国"],"鳥取":[134.17,35.53,"中国"],"米子":[133.24,35.49,"中国"],
+"出雲":[132.89,35.41,"中国"],"隠岐":[133.32,36.18,"中国"],"萩・石見":[131.79,34.68,"中国"],
+"徳島":[134.61,34.13,"四国"],"高知":[133.67,33.55,"四国"],"松山":[132.70,33.83,"四国"],
+"福岡":[130.45,33.59,"九州"],"大分":[131.74,33.48,"九州"],"熊本":[130.86,32.84,"九州"],
+"天草":[130.16,32.48,"九州"],"長崎":[129.92,32.92,"九州"],"宮崎":[131.45,31.88,"九州"],
+"鹿児島":[130.72,31.80,"九州"],"屋久島":[130.66,30.39,"九州"],
+"奄美":[129.71,28.43,"沖縄・奄美"],"那覇":[127.65,26.20,"沖縄・奄美"],
+"宮古":[125.30,24.78,"沖縄・奄美"],"石垣":[124.25,24.40,"沖縄・奄美"]
+};
+
+/* ============================================================
+   航空会社データ（2026年8月時点の概略）
+   ============================================================ */
+const AIRLINES=[
+{id:"all",name:"すべて",code:"ALL",
+ note:"関空の国内線は6社13都市、伊丹は4社30都市前後。伊丹の方が就航先が圧倒的に多く、関空はLCCと沖縄・北海道線が中心という住み分けになっています。"},
+
+{id:"ana",name:"ANAグループ",code:"NH",
+ kix:["新千歳","那覇","石垣"],
+ itm:["新千歳","函館","旭川","釧路","青森","秋田","仙台","山形","福島","新潟","東京/羽田",
+      "鳥取","米子","松山","高知","徳島","福岡","大分","熊本","長崎","宮崎","鹿児島","那覇"],
+ note:"ANAウイングス運航便を含みます。伊丹発は山陰（鳥取・米子）や東北の県庁所在地をきめ細かく押さえているのが特徴。羽田線は伊丹のみです。"},
+
+{id:"jal",name:"JALグループ",code:"JL / NU",
+ kix:["新千歳","那覇","宮古","石垣"],
+ itm:["新千歳","函館","旭川","釧路","青森","いわて花巻","仙台","新潟","松本","東京/羽田",
+      "出雲","隠岐","但馬","萩・石見","松山","高知","徳島","福岡","大分","熊本","長崎","宮崎","鹿児島","屋久島","那覇"],
+ note:"J-AIR・日本エアコミューター（JAC）・日本トランスオーシャン航空（JTA）の運航便を含みます。但馬・隠岐・屋久島など小規模空港はJACが担当。関空発の宮古・石垣はJTA。伊丹〜松本は2026年7月30日〜8月28日の夏季限定です。"},
+
+{id:"peach",name:"ピーチ",code:"MM",
+ kix:["新千歳","女満別","釧路","仙台","東京/成田","福岡","長崎","宮崎","鹿児島","奄美","那覇","石垣"],
+ itm:[],
+ note:"関空を拠点にする日系LCC。国内線は12路線で、関空の国内線の骨格そのもの。女満別・釧路は2026年7月に運航を開始した路線です。伊丹には乗り入れていません。"},
+
+{id:"jjp",name:"ジェットスター・ジャパン",code:"GK",
+ kix:["新千歳","東京/成田","福岡","那覇"],itm:[],
+ note:"関空を拠点のひとつにするLCC。幹線に絞った構成で、成田・新千歳・福岡・那覇が中心です。"},
+
+{id:"sfj",name:"スターフライヤー",code:"7G",
+ kix:["福岡"],itm:[],
+ note:"北九州拠点の航空会社。関空〜福岡線を運航しています。革張りシートで座席間隔が広く、LCCとは別の快適さがあります。"},
+
+{id:"ibx",name:"IBEXエアラインズ",code:"FW",
+ kix:[],itm:["仙台"],
+ note:"仙台を拠点とするリージョナル航空会社。伊丹〜仙台線を運航し、ANAとの共同運航便として販売されています。"},
+
+{id:"amx",name:"天草エアライン",code:"MZ",
+ kix:[],itm:["天草"],
+ note:"熊本県の天草を拠点とする1機運航の航空会社。イルカを描いた「みぞか号」で伊丹〜天草を結びます。伊丹から行ける最も小さな空港のひとつ。"}
+];
+
+/* ============================================================
+   投影とチャート範囲（日本域）
+   ============================================================ */
+const R2D=180/Math.PI;
+const mercY=lat=>R2D*Math.log(Math.tan(Math.PI/4+lat*Math.PI/360));
+const px=lon=>lon*30, py=lat=>-mercY(lat)*30;
+const CHART={x0:px(121),x1:px(149),y0:py(46.5),y1:py(22.5)};
+const proj=(lon,lat)=>[px(lon),py(lat)];
+function dist(a,b){const r=6371,d=Math.PI/180;
+  const dLat=(b[1]-a[1])*d,dLon=(b[0]-a[0])*d;
+  const s=Math.sin(dLat/2)**2+Math.cos(a[1]*d)*Math.cos(b[1]*d)*Math.sin(dLon/2)**2;
+  return 2*r*Math.asin(Math.sqrt(s));}
+function destPoint(lon,lat,brg,km){const r=6371,d=Math.PI/180,R=180/Math.PI;
+  const f1=lat*d,l1=lon*d,t=brg*d,dd=km/r;
+  const f2=Math.asin(Math.sin(f1)*Math.cos(dd)+Math.cos(f1)*Math.sin(dd)*Math.cos(t));
+  const l2=l1+Math.atan2(Math.sin(t)*Math.sin(dd)*Math.cos(f1),Math.cos(dd)-Math.sin(f1)*Math.sin(f2));
+  return [((l2*R+540)%360)-180,f2*R];}
+
+/* ============================================================
+   陸地（概略アウトライン）
+   ============================================================ */
+const LAND=[
+/* 本州 */
+[[141.0,41.5],[140.3,41.4],[140.0,40.5],[139.9,39.9],[139.6,39.0],[139.9,38.5],[139.4,38.0],[138.5,37.6],
+ [137.3,37.4],[136.9,37.3],[137.1,36.9],[136.3,36.4],[135.9,35.8],[135.2,35.7],[134.5,35.6],[133.3,35.6],
+ [132.4,35.5],[131.6,35.4],[131.0,34.7],[131.4,34.4],[132.2,34.3],[133.0,34.4],[133.9,34.4],[134.6,34.7],
+ [135.2,34.7],[135.4,34.2],[135.1,33.9],[135.8,33.5],[136.2,34.2],[136.9,34.2],[136.8,34.8],[137.2,34.6],
+ [138.3,34.6],[138.8,35.0],[139.6,35.1],[139.8,35.6],[140.4,35.6],[140.9,35.7],[140.6,36.4],[141.0,37.0],
+ [141.0,38.3],[141.6,38.4],[141.5,39.0],[141.9,39.6],[141.9,40.5],[140.9,40.7],[141.4,41.2]],
+/* 北海道 */
+[[140.0,42.0],[141.0,41.8],[141.8,42.6],[143.0,42.3],[144.3,42.9],[145.3,43.4],[144.8,44.3],[143.5,44.4],
+ [141.7,45.5],[141.6,44.0],[140.5,43.3]],
+/* 四国 */
+[[134.6,34.3],[134.3,34.2],[133.7,34.2],[132.9,33.9],[132.3,33.5],[132.0,33.0],[132.6,32.9],[133.3,33.2],
+ [134.2,33.3],[134.8,33.5],[134.7,34.0]],
+/* 九州 */
+[[130.9,33.9],[130.2,33.6],[129.8,33.3],[129.4,33.4],[129.6,32.8],[130.2,32.6],[130.0,32.1],[130.2,31.6],
+ [130.6,31.2],[130.7,31.0],[131.0,31.4],[131.5,31.5],[131.9,32.5],[131.6,33.2],[131.9,33.6]],
+/* 淡路島 */[[134.7,34.6],[135.0,34.4],[134.9,34.2],[134.6,34.3]],
+/* 佐渡 */[[138.2,38.1],[138.5,38.3],[138.5,38.0],[138.2,37.8]],
+/* 対馬 */[[129.2,34.7],[129.5,34.6],[129.4,34.2],[129.2,34.3]],
+/* 隠岐 */[[133.0,36.3],[133.4,36.3],[133.4,36.1],[133.0,36.1]],
+/* 屋久島・種子島 */[[130.4,30.4],[130.7,30.3],[130.6,30.2],[130.4,30.3]],
+[[130.9,30.8],[131.1,30.7],[131.0,30.4],[130.8,30.5]],
+/* 奄美大島 */[[129.2,28.5],[129.7,28.5],[129.6,28.2],[129.2,28.3]],
+/* 沖縄本島 */[[127.65,26.10],[127.8,26.2],[128.0,26.45],[128.3,26.7],[128.25,26.85],[128.0,26.6],[127.75,26.35]],
+/* 宮古島 */[[125.15,24.75],[125.45,24.85],[125.5,24.7],[125.2,24.65]],
+/* 石垣島 */[[124.05,24.35],[124.3,24.5],[124.4,24.35],[124.15,24.28]]
+];
+
+/* ============================================================
+   描画
+   ============================================================ */
+const NS="http://www.w3.org/2000/svg";
+const svg=document.getElementById("chart");
+const el=(t,a)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const gLand=el("g",{}),gRing=el("g",{}),gArc=el("g",{}),gDot=el("g",{}),gLbl=el("g",{});
+svg.append(gLand,gRing,gArc,gDot,gLbl);
+
+gLand.appendChild(el("rect",{x:CHART.x0,y:CHART.y0,width:CHART.x1-CHART.x0,height:CHART.y1-CHART.y0,fill:"var(--sea)"}));
+for(let lon=125;lon<=148;lon+=5){const a=proj(lon,46.5),b=proj(lon,22.5);
+  gLand.appendChild(el("line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:"var(--grid)","stroke-width":.6,opacity:.5,"vector-effect":"non-scaling-stroke"}));}
+for(let lat=25;lat<=45;lat+=5){const a=proj(121,lat),b=proj(149,lat);
+  gLand.appendChild(el("line",{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:"var(--grid)","stroke-width":.6,opacity:.5,"vector-effect":"non-scaling-stroke"}));}
+LAND.forEach(p=>{const d="M"+p.map(q=>proj(q[0],q[1]).map(v=>v.toFixed(1)).join(" ")).join("L")+"Z";
+  gLand.appendChild(el("path",{d,fill:"var(--land)",stroke:"var(--land-line)","stroke-width":.9,"stroke-linejoin":"round","vector-effect":"non-scaling-stroke"}));});
+
+[500,1000,1500,2000].forEach(km=>{
+  const pts=[];for(let b=0;b<=360;b+=3){const p=destPoint(ORIGIN.KIX.p[0],ORIGIN.KIX.p[1],b,km);pts.push(proj(p[0],p[1]));}
+  gRing.appendChild(el("path",{d:"M"+pts.map(p=>p.map(v=>v.toFixed(1)).join(" ")).join("L"),
+    fill:"none",stroke:"var(--edge)","stroke-width":.9,"stroke-dasharray":"2 5",opacity:.7,"vector-effect":"non-scaling-stroke"}));
+  const lp=destPoint(ORIGIN.KIX.p[0],ORIGIN.KIX.p[1],118,km),xy=proj(lp[0],lp[1]);
+  const t=el("text",{x:xy[0],y:xy[1],class:"ringlbl","text-anchor":"middle"});
+  t.textContent=km.toLocaleString()+"km";gRing.appendChild(t);});
+
+/* 出発空港のシンボル */
+const oxy={KIX:proj(...ORIGIN.KIX.p),ITM:proj(...ORIGIN.ITM.p)};
+[["KIX","var(--kix)","関空",1],["ITM","var(--itm)","伊丹",-1]].forEach(([k,col,label,dir])=>{
+  gDot.appendChild(el("circle",{cx:oxy[k][0],cy:oxy[k][1],r:5,fill:"none",stroke:col,"stroke-width":2,"vector-effect":"non-scaling-stroke"}));
+  gDot.appendChild(el("circle",{cx:oxy[k][0],cy:oxy[k][1],r:1.8,fill:col}));
+  const t=el("text",{x:oxy[k][0]+(dir>0?9:-9),y:oxy[k][1]+(dir>0?11:-6),class:"lbl origin-lbl",
+    "font-weight":"700",fill:col,"text-anchor":dir>0?"start":"end"});
+  t.textContent=label;gLbl.appendChild(t);});
+
+/* ============================================================
+   状態
+   ============================================================ */
+let current=AIRLINES[0],originFilter="both",selected=null;
+let vb={x:CHART.x0,y:CHART.y0,w:CHART.x1-CHART.x0,h:CHART.y1-CHART.y0},vbTarget={...vb};
+
+function arcPath(p1,p2,bend){
+  const mx=(p1[0]+p2[0])/2,my=(p1[1]+p2[1])/2,dx=p2[0]-p1[0],dy=p2[1]-p1[1];
+  return `M${p1[0].toFixed(1)} ${p1[1].toFixed(1)}Q${(mx-dy*bend).toFixed(1)} ${(my+dx*bend).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+}
+
+/* 都市 → {origins:Set, airlines:{KIX:[],ITM:[]}} */
+function routesOf(al){
+  const list=al.id==="all"?AIRLINES.filter(a=>a.id!=="all"):[al];
+  const m=new Map();
+  list.forEach(a=>{
+    if(originFilter!=="itm")(a.kix||[]).forEach(c=>add(c,"KIX",a.name));
+    if(originFilter!=="kix")(a.itm||[]).forEach(c=>add(c,"ITM",a.name));
+  });
+  function add(city,o,name){
+    if(!CITY[city])return;
+    if(!m.has(city))m.set(city,{city,origins:new Set(),by:{KIX:[],ITM:[]}});
+    const e=m.get(city);e.origins.add(o);if(!e.by[o].includes(name))e.by[o].push(name);
+  }
+  return [...m.values()];
+}
+const colorOf=o=>o.size===2?"var(--both)":o.has("KIX")?"var(--kix)":"var(--itm)";
+
+function render(){
+  gArc.textContent="";
+  gDot.querySelectorAll(".city-dot").forEach(n=>n.remove());
+  gLbl.querySelectorAll(".city-lbl").forEach(n=>n.remove());
+
+  const routes=routesOf(current);
+  const bbox=[oxy.KIX[0],oxy.KIX[1],oxy.ITM[0],oxy.ITM[1]];
+
+  routes.forEach(r=>{
+    const c=CITY[r.city],p2=proj(c[0],c[1]);
+    ["KIX","ITM"].forEach(o=>{
+      if(!r.origins.has(o))return;
+      gArc.appendChild(el("path",{d:arcPath(oxy[o],p2,o==="KIX"?0.10:-0.10),fill:"none",
+        stroke:o==="KIX"?"var(--kix)":"var(--itm)","stroke-width":1.6,
+        "stroke-dasharray":o==="ITM"?"5 4":"none",opacity:.85,
+        "vector-effect":"non-scaling-stroke","stroke-linecap":"round"}));
+    });
+
+    const g=el("g",{class:"city-dot",tabindex:"0",role:"button","aria-label":r.city});
+    g.appendChild(el("circle",{cx:p2[0],cy:p2[1],r:3.4,fill:colorOf(r.origins),
+      stroke:"var(--paper)","stroke-width":1,"vector-effect":"non-scaling-stroke"}));
+    g.appendChild(el("circle",{cx:p2[0],cy:p2[1],r:11,fill:"transparent"}));
+    const act=()=>{selected=r;paintStrip();};
+    g.addEventListener("click",act);
+    g.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();act();}});
+    gDot.appendChild(g);
+
+    const right=c[0]>=134.8;
+    const t=el("text",{x:p2[0]+(right?7:-7),y:p2[1]+3.5,class:"lbl city-lbl",
+      "text-anchor":right?"start":"end"});
+    t.textContent=r.city.replace("東京/","");
+    gLbl.appendChild(t);
+
+    bbox[0]=Math.min(bbox[0],p2[0]);bbox[1]=Math.min(bbox[1],p2[1]);
+    bbox[2]=Math.max(bbox[2],p2[0]);bbox[3]=Math.max(bbox[3],p2[1]);
+  });
+
+  const padX=(bbox[2]-bbox[0])*0.14+80,padY=(bbox[3]-bbox[1])*0.14+80;
+  let x=bbox[0]-padX,y=bbox[1]-padY,w=(bbox[2]-bbox[0])+padX*2,h=(bbox[3]-bbox[1])+padY*2;
+  const minW=380;if(w<minW){x-=(minW-w)/2;w=minW;}
+  if(h<minW*0.8){y-=(minW*0.8-h)/2;h=minW*0.8;}
+  w=Math.min(w,CHART.x1-CHART.x0);h=Math.min(h,CHART.y1-CHART.y0);
+  x=Math.max(CHART.x0,Math.min(x,CHART.x1-w));y=Math.max(CHART.y0,Math.min(y,CHART.y1-h));
+  vbTarget={x,y,w,h};
+  animate();paintPanel(routes);
+}
+
+let raf=null;
+const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const narrow=()=>window.matchMedia("(max-width:820px)").matches;
+function applyVB(){
+  svg.setAttribute("viewBox",`${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  const k=vb.w/1000, s=narrow()?1.5:1;
+  gLbl.setAttribute("font-size",(11.5*k*s).toFixed(2));
+  gLbl.style.strokeWidth=(2.6*k*s).toFixed(2)+"px";
+  gRing.setAttribute("font-size",(9*k*s).toFixed(2));
+  gDot.querySelectorAll("circle").forEach(c=>{
+    if(!c.dataset.r)c.dataset.r=c.getAttribute("r");
+    c.setAttribute("r",(parseFloat(c.dataset.r)*k*s).toFixed(2));});
+  gLbl.querySelectorAll("text").forEach(t=>{
+    if(!t.dataset.dx){
+      t.dataset.x0=parseFloat(t.getAttribute("x"));
+      t.dataset.y0=parseFloat(t.getAttribute("y"));
+      const end=t.getAttribute("text-anchor")==="end";
+      if(t.classList.contains("origin-lbl")){t.dataset.dx=end?-9:9;t.dataset.dy=end?-6:11;}
+      else{t.dataset.dx=end?-7:7;t.dataset.dy=3.5;}
+    }
+    const bx=parseFloat(t.dataset.x0)-parseFloat(t.dataset.dx);
+    const by=parseFloat(t.dataset.y0)-parseFloat(t.dataset.dy);
+    t.setAttribute("x",bx+parseFloat(t.dataset.dx)*k*s);
+    t.setAttribute("y",by+parseFloat(t.dataset.dy)*k*s);
+  });
+}
+function animate(){
+  if(reduce){vb={...vbTarget};applyVB();return;}
+  cancelAnimationFrame(raf);
+  const step=()=>{let done=true;
+    ["x","y","w","h"].forEach(k=>{const d=vbTarget[k]-vb[k];
+      if(Math.abs(d)>0.6){vb[k]+=d*0.18;done=false;}else vb[k]=vbTarget[k];});
+    applyVB();if(!done)raf=requestAnimationFrame(step);};
+  raf=requestAnimationFrame(step);
+}
+let rz=null;
+window.addEventListener("resize",()=>{clearTimeout(rz);rz=setTimeout(applyVB,150);});
+window.addEventListener("orientationchange",()=>setTimeout(applyVB,300));
+
+/* ============================================================
+   パネル
+   ============================================================ */
+const elName=document.getElementById("alName"),elMeta=document.getElementById("alMeta"),
+      elNote=document.getElementById("alNote"),elChips=document.getElementById("chips"),
+      elStrip=document.getElementById("strip");
+const ORDER=["北海道","東北","関東","中部","中国","四国","九州","沖縄・奄美"];
+
+function paintPanel(routes){
+  elName.textContent=current.name;
+  const kn=routes.filter(r=>r.origins.has("KIX")).length,
+        tn=routes.filter(r=>r.origins.has("ITM")).length;
+  elMeta.textContent=`${current.code} — 関空 ${kn} 都市 / 伊丹 ${tn} 都市`;
+  elNote.textContent=current.note||"";
+
+  const m=new Map();
+  routes.forEach(r=>{const reg=CITY[r.city][2];
+    if(!m.has(reg))m.set(reg,new Set());
+    r.origins.forEach(o=>m.get(reg).add(o));});
+  elChips.textContent="";
+  ORDER.filter(r=>m.has(r)).forEach(reg=>{
+    const o=m.get(reg),cls=o.size===2?"both":o.has("KIX")?"":"itm";
+    const s=document.createElement("span");
+    s.className="cp"+(cls?" "+cls:"");
+    s.innerHTML=`<s>${o.size===2?"両方":o.has("KIX")?"関空":"伊丹"}</s>${reg}`;
+    elChips.appendChild(s);});
+  if(!m.size)elChips.innerHTML='<span class="empty">この条件で表示する路線がありません。</span>';
+}
+
+function paintStrip(){
+  if(!selected){elStrip.innerHTML='<p class="empty">地図の●を押すと、出発空港と距離が出ます。</p>';return;}
+  const c=CITY[selected.city],o=selected.origins;
+  const from=o.size===2?"関空・伊丹の両方":o.has("KIX")?"関西（関空）":"大阪（伊丹）";
+  const base=o.has("KIX")?ORIGIN.KIX.p:ORIGIN.ITM.p;
+  const km=Math.round(dist(base,[c[0],c[1]])/10)*10;
+  const hrs=km/600+0.45;
+  const air=[...new Set([...selected.by.KIX,...selected.by.ITM])].join("・")||"—";
+  const rows=[["地方",c[2]],["出発空港",from],["運航",air],
+    ["直線距離",km.toLocaleString()+" km"],["所要目安",`約 ${hrs.toFixed(1)} 時間`]];
+  elStrip.innerHTML=`<div class="strip"><div class="city">${selected.city}</div>`+
+    rows.map(r=>`<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join("")+`</div>`;
+}
+
+/* ============================================================
+   タブ・出発空港切替
+   ============================================================ */
+const tabs=document.getElementById("tabs");
+AIRLINES.forEach(a=>{
+  const b=document.createElement("button");
+  b.className="tab";b.type="button";b.setAttribute("aria-pressed",a.id===current.id);
+  b.innerHTML=`<span>${a.name}</span><span class="code">${a.code}</span>`;
+  b.addEventListener("click",()=>{
+    current=a;selected=null;paintStrip();
+    tabs.querySelectorAll(".tab").forEach((t,i)=>t.setAttribute("aria-pressed",AIRLINES[i].id===a.id));
+    render();});
+  tabs.appendChild(b);});
+
+document.querySelectorAll(".seg button").forEach(b=>{
+  b.addEventListener("click",()=>{
+    originFilter=b.dataset.o;selected=null;paintStrip();
+    document.querySelectorAll(".seg button").forEach(x=>x.setAttribute("aria-pressed",x===b));
+    render();});});
+
+render();
+</script>
+</body>
+</html>
